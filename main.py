@@ -13,8 +13,8 @@ dispatcher = Dispatcher()
 
 
 @dispatcher.message(CommandStart())
-async def command_start_handler(message: Message) -> None:
-    await message.answer(f"Hello, {message.from_user.full_name}, how I can help you!")
+async def command_start_handler(message: Message) :
+    await message.answer(f"Привет, {message.from_user.full_name}! Отправь голосовое сообщение и посмотри, что я могу тебе сказать")
 
 
 @dispatcher.message(F.voice)
@@ -28,7 +28,7 @@ async def handle_voice_message(message: Message):
     await message.answer_voice(FSInputFile(path))
 
 
-async def main():   
+async def main():
     await dispatcher.start_polling(voicer_bot)
 
 
