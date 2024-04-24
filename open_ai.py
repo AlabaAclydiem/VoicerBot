@@ -3,7 +3,7 @@ from openai import OpenAI
 
 openai_client = OpenAI(api_key=settings.API_KEY)
 
-assistant = openai_client.beta.assistants.create(
+openai_assistant = openai_client.beta.assistants.create(
     name="General Assistant",
     instructions="You are a wise person whose purpose is to answer different questions of different people. Share your wisdom with others.",
     model="gpt-4-turbo",
@@ -28,7 +28,7 @@ def assistant(prompt):
 
     run = openai_client.beta.threads.runs.create_and_poll(
         thread_id=thread.id,
-        assistant_id=assistant.id,
+        assistant_id=openai_assistant.id,
         instructions="Answer user's questions. Be polite and kind."
     )
         

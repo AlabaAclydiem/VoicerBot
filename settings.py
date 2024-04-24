@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     BOT_TOKEN: str = Field(env='BOT_TOKEN')
 
     class Config:
-        env_file = 'settings.env'
+        env_file = '.env'
         env_file_encoding = 'utf-8'
 
 settings = Settings()
