@@ -1,6 +1,5 @@
 from settings import settings
 from openai import AsyncOpenAI
-from utils.save_values import save_values
 import uuid
 import json
 
@@ -78,7 +77,7 @@ async def assistant(prompt, thread):
             if tool.function.name == "save_values":
                 tool_outputs.append({
                     "tool_call_id": tool.id,
-                    "output": save_values(json.loads(tool.function.arguments)['values'])
+                    "output": await save_values(json.loads(tool.function.arguments)['values'])
                 })
                 run = await openai_client.beta.threads.runs.submit_tool_outputs_and_poll(
                     thread_id=thread.id,
@@ -102,3 +101,38 @@ async def TTS(text):
     ) as response:
         await response.stream_to_file(path)
     return path
+
+
+async def save_values(values):
+    response = await openai_client.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[
+            {"role": "system", "content": "Ты квалифицированный психолог. Твоя задача определить, корректен ли перечень предлагаемых человеческих ценностей, могут ли такие существовать, есть ли в нём противоречия. Ответ давать либо true, если всё правильно, иначе false"},
+            {"role": "user", "content": f"Проверь следующий перечень ценностей: {values}"}
+        ],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "validate_values",
+                    "description": "Эту функцию вызываешь всегда. Её параметром указывай булево значения корректности полученных ценностей. либо True, либо False",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "correct": {
+                                "type": "boolean",
+                                "description": "Булево значение корректности полученных ценностей"
+                                },
+                            },
+                        "required": ["correct"]
+                    }
+                }
+            },
+        ],
+        tool_choice={"type": "function", "function": {"name": "validate_values"}}
+    )
+    correct = json.loads(response.choices[0].message.tool_calls[0].function.arguments)['correct']
+    if correct:
+        return "Ценности определены верно. Можешь благодарить пользователя и заканчивать работу"
+    else:
+        return "Ценности бессмысленны или некорректны. Продолжай узнавать информацию"
