@@ -9,7 +9,7 @@ from aiogram.types import Message
 
 @dispatcher.message(CommandStart())
 async def command_start_handler(message: Message) :
-    await message.answer(f"Привет, {message.from_user.full_name}! Отправь голосовое или текстовое сообщение и посмотри, что я могу тебе рассказать!")
+    await message.answer("Привет! Я активирован")
 
 
 @dispatcher.message(F.text)

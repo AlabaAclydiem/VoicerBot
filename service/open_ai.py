@@ -1,6 +1,8 @@
 from settings import settings
 from openai import AsyncOpenAI
+from utils.save_values import save_values
 import uuid
+import json
 
 
 openai_client = None
@@ -13,9 +15,28 @@ async def init_openai():
     openai_client = AsyncOpenAI(api_key=settings.API_KEY)
 
     openai_assistant = await openai_client.beta.assistants.create(
-        name="General Assistant",
-        instructions="You are a wise person whose purpose is to answer different questions of different people. Share your wisdom with others.",
+        name="Ассистент ценностей",
+        instructions="Ты высококлассный психолог. Твоя задача - общаться с человеком, разговаривать с ним, задавать вопросы. Твоя цель - определить его главные жизненные ценности. Как только ты их определишь, перечисли их ему",
         model="gpt-4-turbo",
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "save_values",
+                    "description": "Вызови эту функцию тогда, когда определишь основные ценности человека, с которым разговариваешь",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "values": {
+                                "type": "string",
+                                "description": "Ценности человека, перечисленные через запятую. Например 'любовь, семья, деньги'"
+                                },
+                            },
+                        "required": ["values"]
+                    }
+                }
+            },
+        ]
     )
 
 
@@ -32,7 +53,12 @@ async def STT(audio_file_path):
             file=audio_file,
         )
         return transcription.text
-    
+
+
+async def get_thread_messages(thread):
+    return await openai_client.beta.threads.messages.list(
+        thread_id=thread.id,
+    )   
 
 async def assistant(prompt, thread):
     await openai_client.beta.threads.messages.create(
@@ -44,13 +70,24 @@ async def assistant(prompt, thread):
     run = await openai_client.beta.threads.runs.create_and_poll(
         thread_id=thread.id,
         assistant_id=openai_assistant.id,
-        instructions="Answer user's questions. Be polite and kind."
     )
         
+    tool_outputs = []
+    if run.required_action is not None:
+        for tool in run.required_action.submit_tool_outputs.tool_calls:
+            if tool.function.name == "save_values":
+                tool_outputs.append({
+                    "tool_call_id": tool.id,
+                    "output": save_values(json.loads(tool.function.arguments)['values'])
+                })
+                run = await openai_client.beta.threads.runs.submit_tool_outputs_and_poll(
+                    thread_id=thread.id,
+                    run_id=run.id,
+                    tool_outputs=tool_outputs
+                )
+
     if run.status == 'completed': 
-        messages = await openai_client.beta.threads.messages.list(
-            thread_id=thread.id,
-        )   
+        messages = await get_thread_messages(thread)
         return messages.data[0].content[0].text.value
     else:
         return 'Sorry, some troubles occured'
