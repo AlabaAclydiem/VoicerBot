@@ -1,15 +1,10 @@
-from settings import settings
-from open_ai import STT, assistant, TTS
+from settings import voicer_bot, dispatcher
+from service.open_ai import init_openai, STT, assistant, TTS
+from utils.run_openai import run_openai
 import asyncio
-from aiogram import Bot, Dispatcher, F
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
+from aiogram import F
 from aiogram.filters import CommandStart
-from aiogram.types import Message, FSInputFile
-
-
-voicer_bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dispatcher = Dispatcher()
+from aiogram.types import Message
 
 
 @dispatcher.message(CommandStart())
@@ -19,23 +14,16 @@ async def command_start_handler(message: Message) :
 
 @dispatcher.message(F.text)
 async def handle_text_message(message: Message):
-    response = assistant(message.text)
-    path = TTS(response)
-    await message.answer_voice(FSInputFile(path))
+    await run_openai(message, voice=False)
 
 
 @dispatcher.message(F.voice)
 async def handle_voice_message(message: Message):
-    dest = 'temp.ogg'
-    file_info = await voicer_bot.get_file(message.voice.file_id)
-    await voicer_bot.download_file(file_info.file_path, destination=dest)
-    prompt = STT(dest)
-    response = assistant(prompt)
-    path = TTS(response)
-    await message.answer_voice(FSInputFile(path))
+    await run_openai(message, voice=True)
 
 
 async def main():
+    await init_openai()
     await dispatcher.start_polling(voicer_bot)
 
 
