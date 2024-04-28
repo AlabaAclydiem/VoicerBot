@@ -134,8 +134,8 @@ async def save_values(values, telegram_id):
     )
     correct = json.loads(response.choices[0].message.tool_calls[0].function.arguments)['correct']
     if correct:
-        values = await check_user_values(telegram_id)
-        if not values:
+        db_values = await check_user_values(telegram_id)
+        if not db_values:
             await save_user_values(telegram_id, values)
             return "Ценности определены верно. Они были сохранены. Можешь благодарить пользователя и заканчивать работу"
         else:
