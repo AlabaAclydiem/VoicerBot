@@ -1,3 +1,4 @@
+from service.database import save_user_values, check_user_values
 from settings import settings
 from openai import AsyncOpenAI
 import uuid
@@ -59,7 +60,7 @@ async def get_thread_messages(thread):
         thread_id=thread.id,
     )   
 
-async def assistant(prompt, thread):
+async def assistant(prompt, thread, telegram_id):
     await openai_client.beta.threads.messages.create(
         thread_id=thread.id,
         role="user",
@@ -77,7 +78,7 @@ async def assistant(prompt, thread):
             if tool.function.name == "save_values":
                 tool_outputs.append({
                     "tool_call_id": tool.id,
-                    "output": await save_values(json.loads(tool.function.arguments)['values'])
+                    "output": await save_values(json.loads(tool.function.arguments)['values'], telegram_id)
                 })
                 run = await openai_client.beta.threads.runs.submit_tool_outputs_and_poll(
                     thread_id=thread.id,
@@ -103,7 +104,7 @@ async def TTS(text):
     return path
 
 
-async def save_values(values):
+async def save_values(values, telegram_id):
     response = await openai_client.chat.completions.create(
         model="gpt-4-turbo",
         messages=[
@@ -133,6 +134,11 @@ async def save_values(values):
     )
     correct = json.loads(response.choices[0].message.tool_calls[0].function.arguments)['correct']
     if correct:
-        return "Ценности определены верно. Можешь благодарить пользователя и заканчивать работу"
+        values = await check_user_values(telegram_id)
+        if not values:
+            await save_user_values(telegram_id, values)
+            return "Ценности определены верно. Они были сохранены. Можешь благодарить пользователя и заканчивать работу"
+        else:
+            return f"Ваши ценности уже были определены. Выведи пользователю их. Вот они: {values}"
     else:
         return "Ценности бессмысленны или некорректны. Продолжай узнавать информацию"

@@ -7,6 +7,7 @@ from aiogram.enums import ParseMode
 class Settings(BaseSettings):
     API_KEY: str = Field(env='API_KEY')
     BOT_TOKEN: str = Field(env='BOT_TOKEN')
+    DATABASE_URL: str = Field(env='DATABASE_URL')
 
     class Config:
         env_file = '.env'

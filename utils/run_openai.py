@@ -14,7 +14,7 @@ async def run_openai(message, voice=False):
         prompt = await STT(dest)
     else:
         prompt = message.text
-    response = await assistant(prompt, thread)
+    response = await assistant(prompt, thread, message.from_user.id)
     path = await TTS(response)
     await message.answer(response)
     await message.answer_voice(FSInputFile(path))
