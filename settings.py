@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     API_KEY: str = Field(env='API_KEY')
     BOT_TOKEN: str = Field(env='BOT_TOKEN')
     DATABASE_URL: str = Field(env='DATABASE_URL')
+    AMPLITUDE_API: str = Field(env='AMPLITUDE_API')
 
     class Config:
         env_file = '.env'

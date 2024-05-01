@@ -1,6 +1,8 @@
-from service.database import save_user_values, check_user_values
+from database.database import save_user_values, check_user_values
 from settings import settings
 from openai import AsyncOpenAI
+import aiohttp
+import requests
 import uuid
 import json
 
@@ -142,3 +144,58 @@ async def save_values(values, telegram_id):
             return f"Ваши ценности уже были определены. Выведи пользователю их. Вот они: {values}"
     else:
         return "Ценности бессмысленны или некорректны. Скажи пользователю, что что-то не так, и продолжай узнавать информацию"
+    
+
+async def emotions(base64_image):
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {settings.API_KEY}"
+    }
+
+    payload = {
+        "model": "gpt-4-turbo",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Определи эмоции человека на фотографии. Перечисли одним словом или списком слов без дополнительных комментариев"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "tools": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_emotion",
+                    "description": "Эту функцию вызываешь всегда. Её параметром указывай одну выявленную эмоцию человека из перечня возможных",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "emotion": {
+                                "type": "string",
+                                "enum": ["Радость", "Злость", "Отвращение", "Страх", "Грусть", "Удивление", "Доверие", "Предвкушение", "Презрение", "Вина", "Стыд"],
+                                "description": "Строковое значение, описывающее эмоцию человека на фотографии."
+                                },
+                            },
+                        "required": ["emotion"]
+                    }
+                }
+            },
+        ],
+        "tool_choice": {"type": "function", "function": {"name": "get_emotion"}},
+        "max_tokens": 300
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload) as response:
+            answer = await response.json()
+            return json.loads(answer['choices'][0]['message']['tool_calls'][0]['function']['arguments'])['emotion']
