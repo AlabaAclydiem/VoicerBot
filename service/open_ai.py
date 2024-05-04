@@ -1,8 +1,6 @@
 from database.database import save_user_values, check_user_values
 from settings import settings
 from openai import AsyncOpenAI
-import aiohttp
-import requests
 import uuid
 import json
 
@@ -147,14 +145,9 @@ async def save_values(values, telegram_id):
     
 
 async def emotions(base64_image):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {settings.API_KEY}"
-    }
-
-    payload = {
-        "model": "gpt-4-turbo",
-        "messages": [
+    response = await openai_client.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[
             {
                 "role": "user",
                 "content": [
@@ -171,7 +164,7 @@ async def emotions(base64_image):
                 ]
             }
         ],
-        "tools": [
+        tools=[
             {
                 "type": "function",
                 "function": {
@@ -191,11 +184,8 @@ async def emotions(base64_image):
                 }
             },
         ],
-        "tool_choice": {"type": "function", "function": {"name": "get_emotion"}},
-        "max_tokens": 300
-    }
+        tool_choice={"type": "function", "function": {"name": "get_emotion"}},
+        max_tokens=300
+    )
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload) as response:
-            answer = await response.json()
-            return json.loads(answer['choices'][0]['message']['tool_calls'][0]['function']['arguments'])['emotion']
+    return json.loads(response.choices[0].message.tool_calls[0].function.arguments)['emotion']

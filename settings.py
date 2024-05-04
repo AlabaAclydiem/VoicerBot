@@ -3,6 +3,8 @@ from pydantic import Field
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from concurrent.futures import ThreadPoolExecutor
+
 
 class Settings(BaseSettings):
     API_KEY: str = Field(env='API_KEY')
@@ -18,3 +20,5 @@ settings = Settings()
 
 voicer_bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dispatcher = Dispatcher()
+
+executor = ThreadPoolExecutor(max_workers=10)
