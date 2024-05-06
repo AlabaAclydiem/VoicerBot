@@ -7,11 +7,13 @@ import json
 
 openai_client = None
 openai_assistant = None
+vector_store = None
 threads = dict()
 
 
 async def init_openai():
-    global openai_client, openai_assistant
+    global openai_client, openai_assistant, vector_store
+
     openai_client = AsyncOpenAI(api_key=settings.API_KEY)
 
     openai_assistant = await openai_client.beta.assistants.create(
@@ -19,6 +21,7 @@ async def init_openai():
         instructions="Ты высококлассный психолог. Твоя задача - общаться с человеком, разговаривать с ним, задавать вопросы. Твоя цель - определить его главные жизненные ценности. Как только ты их определишь, перечисли их ему",
         model="gpt-4-turbo",
         tools=[
+            {"type": "file_search"},
             {
                 "type": "function",
                 "function": {
@@ -39,6 +42,25 @@ async def init_openai():
         ]
     )
 
+    vector_store = await openai_client.beta.vector_stores.create(
+        name="Хранилище_Тревожности",
+    )
+
+    await openai_client.beta.vector_stores.file_batches.upload_and_poll(
+        vector_store_id=vector_store.id,
+        files=[open("././anxiety.docx", "rb")]
+    )
+
+    await openai_client.beta.assistants.update(
+        assistant_id=openai_assistant.id,
+        tool_resources={
+            "file_search": {"vector_store_ids": [vector_store.id]}
+        }
+    )
+
+    print('openai inited')
+
+
 
 async def get_thread(id):
     if id not in threads.keys():
@@ -55,21 +77,22 @@ async def STT(audio_file_path):
         return transcription.text
 
 
-async def get_thread_messages(thread):
+async def get_thread_messages(thread_id):
     return await openai_client.beta.threads.messages.list(
-        thread_id=thread.id,
+        thread_id=thread_id,
     )   
 
-async def assistant(prompt, thread, telegram_id):
+async def assistant(prompt, thread_id, telegram_id):
     await openai_client.beta.threads.messages.create(
-        thread_id=thread.id,
+        thread_id=thread_id,
         role="user",
         content=prompt,
     )
 
     run = await openai_client.beta.threads.runs.create_and_poll(
-        thread_id=thread.id,
+        thread_id=thread_id,
         assistant_id=openai_assistant.id,
+        instructions="У тебя есть файл, который содержит информацию про тревожность. Если пользователь спросит что-нибудь касательно тревожности, ты можешь поискать информацию в этом файле"
     )
         
     tool_outputs = []
@@ -81,14 +104,23 @@ async def assistant(prompt, thread, telegram_id):
                     "output": await save_values(json.loads(tool.function.arguments)['values'], telegram_id)
                 })
                 run = await openai_client.beta.threads.runs.submit_tool_outputs_and_poll(
-                    thread_id=thread.id,
+                    thread_id=thread_id,
                     run_id=run.id,
                     tool_outputs=tool_outputs
                 )
 
     if run.status == 'completed': 
-        messages = await get_thread_messages(thread)
-        return messages.data[0].content[0].text.value
+        messages = await get_thread_messages(thread_id)
+        content = messages.data[0].content[0].text
+        annotations = content.annotations
+        for annotation in annotations:
+            citation = getattr(annotation, 'file_citation', None)
+            if citation is not None:
+                file = await openai_client.files.retrieve(
+                    citation.file_id
+                )
+                content.value = content.value.replace(annotation.text, f"(Из файла {file.filename})")
+        return content.value
     else:
         return 'Sorry, some troubles occured'
     

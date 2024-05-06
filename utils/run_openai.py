@@ -6,21 +6,19 @@ from utils.download_file import download_file
 from utils.convert_to_base64 import convert_to_base64
 import uuid
 
-async def run_voice(message):
-    thread = await get_thread(message.from_user.id)
+async def run_voice(message, thread_id):
     dest = f'./{uuid.uuid4()}.ogg'
     await download_file(dest, message.voice.file_id)
     prompt = await STT(dest)
-    response = await assistant(prompt, thread, message.from_user.id)
+    response = await assistant(prompt, thread_id, message.from_user.id)
     path = await TTS(response)
     await message.answer(response)
     await message.answer_voice(FSInputFile(path))
     delete_files([dest, path])
     
-async def run_text(message):
-    thread = await get_thread(message.from_user.id)
+async def run_text(message, thread_id):
     prompt = message.text
-    response = await assistant(prompt, thread, message.from_user.id)
+    response = await assistant(prompt, thread_id, message.from_user.id)
     path = await TTS(response)
     await message.answer(response)
     await message.answer_voice(FSInputFile(path))

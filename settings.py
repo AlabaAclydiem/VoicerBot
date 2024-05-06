@@ -4,7 +4,8 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from concurrent.futures import ThreadPoolExecutor
-
+from aiogram.fsm.storage.redis import RedisStorage
+from redis.asyncio import Redis
 
 class Settings(BaseSettings):
     API_KEY: str = Field(env='API_KEY')
@@ -19,6 +20,7 @@ class Settings(BaseSettings):
 settings = Settings()
 
 voicer_bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dispatcher = Dispatcher()
+redis_client = Redis(host='redis')
+dispatcher = Dispatcher(storage=RedisStorage(redis=redis_client))
 
 executor = ThreadPoolExecutor(max_workers=10)
