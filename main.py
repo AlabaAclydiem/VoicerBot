@@ -35,7 +35,7 @@ async def handle_photo_message(message: Message):
 
 @dispatcher.message(ThreadState.thread, F.voice)
 async def handle_voice_message(message: Message, state: FSMContext):
-    data = await state.storage.get_data(StorageKey(bot_id=voicer_bot.id, user_id=message.from_user.id, chat_id=message.chat.id))
+    data =  await state.storage.get_data(StorageKey(bot_id=voicer_bot.id, user_id=message.from_user.id, chat_id=message.chat.id))
     await run_voice(message, data['thread'])   
     process_event("UserSendVoice", str(message.from_user.id), "Пользователь предпочёл общаться с ботом посредством голоса")
 
